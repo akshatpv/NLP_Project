@@ -8,8 +8,12 @@ namespace Viterbi
     public partial class Form1 : Form
     {
         const int num1 = 4, num2 = 5;
-        public static string[] tags = { "VB", "TO", "NN", "PPSS" };
-        public static string[] corpus = { "I", "want", "to", "race" };
+        //public static string[] tags = { "VB", "TO", "NN", "PPSS" };
+        //public static string[] corpus = { "I", "want", "to", "race" };
+
+        public static string[] tags;
+        public static string[] corpus;
+
         Dictionary<string, Dictionary<string, double>> transition = new Dictionary<string, Dictionary<string, double>>();
         Dictionary<string, Dictionary<string, double>> emission = new Dictionary<string, Dictionary<string, double>>();
         Dictionary<string, double> viterbi = new Dictionary<string, double>();
@@ -20,6 +24,13 @@ namespace Viterbi
             InitializeComponent();
 
             populateDictFromFiles();
+
+            int index = 0;
+            corpus = new string[(emission[state]).Count];
+            foreach (KeyValuePair<string, double> corpus_entry in emission[state])
+            {
+                corpus[index++] = corpus_entry.Key;
+            }
 
         }
 
@@ -67,10 +78,10 @@ namespace Viterbi
                         Dictionary<string, double> emmissionDict = new Dictionary<string, double>();
                         String words = tagWordsPair[1];
                         String[] wordProbabilities = words.Split(' ');
-                        for(int i=0; i<wordProbabilities.Length; i += 2)
+                        for (int i = 0; i < wordProbabilities.Length; i += 2)
                         {
                             String wordForm = wordProbabilities[i];
-                            double probability = double.Parse(wordProbabilities[i+1]);
+                            double probability = double.Parse(wordProbabilities[i + 1]);
                             emmissionDict.Add(wordForm, probability);
                         }
                         emission.Add(tag, emmissionDict);
@@ -81,6 +92,16 @@ namespace Viterbi
             {
                 status.Text = "The file could not be read:" + e.Message;
             }
+
+            tags = new string[transition.Count];
+
+            int index = 0;
+            foreach (KeyValuePair<string, Dictionary<string, double>> tag_entry in transition)
+            {
+                tags[index++] = tag_entry.Key;
+            }
+
+
         }
 
         private void populateDictFromStub()
@@ -152,7 +173,7 @@ namespace Viterbi
         }
 
         int first_char = 0;
-        string word = "", state = "``";
+        string word = "", state = "\\t";
         double prev_prob = 1, prob1, prob2;
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
@@ -162,6 +183,7 @@ namespace Viterbi
 
         private void textBox1_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
         {
+
             int length = textBox1.Text.Length;
             if (length > 0 && textBox1.Text[length - 1] == ' ')
             {
@@ -191,11 +213,14 @@ namespace Viterbi
                     }
 
                 }
+
                 prev_prob = max;
                 label4.Text += state;
                 string[] list_of_words = textBox1.Text.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                string next_best_word = predictNextWord(list_of_words, transition, emission);
+                
+                double[,] matrix = new double[tags.Length + 2, list_of_words.Length + 1];
+                fillViterbi(matrix, list_of_words, transition, emission);
+                string next_best_word = predictNextWord(matrix, list_of_words, transition, emission);
                 listBox1.Items.Clear();
                 listBox1.Items.Add(next_best_word);
             }
@@ -204,59 +229,62 @@ namespace Viterbi
                 word = "";
                 label2.Text = "Current word" + word;
             }
-
         }
 
-
-
-
-        public static string predictNextWord(string[] words, Dictionary<string, Dictionary<string, double>> transistion, Dictionary<string, Dictionary<string, double>> emission)
+        public static void fillViterbi(double[,] matrix, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
         {
-            int MATRIX_ROWS = tags.Length + 2;
-            int MATRIX_COLUMNS = words.Length + 1;
-    
-            //Viterbi Matrix
-            double[,] matrix = new double[MATRIX_ROWS, MATRIX_COLUMNS];
-            bool firstWord = true;
-            int i = 0, j = 0;
-            foreach (string word in words)
+            for (int tagI = 0; tagI < tags.Length; tagI++)
             {
-                //Initialization for the first word
-                if (firstWord)
-                {
-                    j = 1;
-                    foreach (string tag in tags)
-                    {
-                        matrix[j, i] = transistion["<s>"][tag] * emission[tag][word];
-                        j++;
-                    }
-                    firstWord = false;
-                    i++;
-                    continue;
-                }
+                double trans_prob = transition["\\t"][tags[tagI]];
+                matrix[tagI, 0] = trans_prob * (emission[tags[tagI]].ContainsKey(words[0]) ? emission[tags[tagI]][words[0]] : 0);
+            }
 
-                //Viterbi algo
-                j = 1;
-                foreach (string tag in tags)
+            for (int wordI = 1; wordI < words.Length; wordI++)
+            {
+                for (int tagI = 0; tagI < tags.Length; tagI++)
                 {
                     double max = 0;
-                    int k = 1;
-                    foreach (string prevTag in tags)
+                    for (int tagJ = 0; tagJ < tags.Length; tagJ++)
                     {
-                        double tagTransistion = matrix[k, i - 1] * transistion[prevTag][tag];
+                        double tagTransistion = matrix[tagJ, wordI - 1] * transition[tags[tagJ]][tags[tagI]];
                         if (tagTransistion > max)
                         {
                             max = tagTransistion;
                         }
-                        k++;
                     }
-                    matrix[j, i] = max * emission[tag][word];
-                    j++;
+                    matrix[tagI, wordI] = max * (emission[tags[tagI]].ContainsKey(words[0]) ? emission[tags[tagI]][words[wordI]] : 0);
                 }
-                i++;
+            }
+        }
 
+        public static string predictNextWord(double[,] matrix, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
+        {
+            double max = 0;
+            String maxTag = null, maxWord = null;
+            for(int tagI = 0; tagI < tags.Length; tagI++)
+            {
+                for (int prevTagI = 0; prevTagI < tags.Length; prevTagI++)
+                {
+                    foreach (KeyValuePair<string, double> corpus_entry in emission[tags[tagI]])
+                    {
+                        double prob = matrix[words.Length, prevTagI] * 
+                            transition[
+                                tags[prevTagI]
+                                ][
+                                tags[tagI]
+                                ] * 
+                            corpus_entry.Value;
+                        if(prob > max)
+                        {
+                            max = prob;
+                            maxTag = tags[tagI];
+                            maxWord = corpus_entry.Key;
+                        }
+                    }
+                }
             }
 
+            /*
             //trying all corpora and returning best match according to matrix found above
             double highestProbability = 0;
             string bestNextWord = "";
@@ -269,7 +297,7 @@ namespace Viterbi
                     double max = 0;
                     foreach (string prevtag in tags)
                     {
-                        double tagTransistion = matrix[k, i - 1] * transistion[prevtag][tag];
+                        double tagTransistion = matrix[k, i - 1] * transition[prevtag][tag];
                         if (tagTransistion > max)
                         {
                             max = tagTransistion;
@@ -290,7 +318,8 @@ namespace Viterbi
                     bestNextWord = corpora;
                 }
             }
-            return bestNextWord;
+            */
+            return maxWord;
         }
     }
 }
