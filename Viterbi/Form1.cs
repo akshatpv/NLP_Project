@@ -48,7 +48,6 @@ namespace Viterbi
                     foreach (String prior in tags)
                     {
                         String probabilityLine = sr.ReadLine();
-                        status.Text = probabilityLine;
                         String[] probabilities = probabilityLine.Split(' ');
                         Dictionary<string, double> priorTransition = new Dictionary<string, double>();
                         for (int i = 0; i < tags.Length; i++)
@@ -71,7 +70,6 @@ namespace Viterbi
                     String line;
                     while ((line = sr.ReadLine()) != null)
                     {
-                        status.Text = line;
                         String[] tagWordsPair = line.Split('\t');
                         String tag = tagWordsPair[0];
 
@@ -178,7 +176,7 @@ namespace Viterbi
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            editorTB.Text += listBox1.SelectedItem.ToString() + " ";
+            editorTB.Text += listBox1.SelectedItem.ToString();
         }
 
         private void editorTB_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
@@ -194,7 +192,7 @@ namespace Viterbi
                 tagsLabel.Text += ' ';
                 double max = 0;
                 //foreach (KeyValuePair<string, double> entry in transition[state]) //1st val of entry=< "<s>", VB >
-                for (int i = 0; i < transition[state].Count; i++)
+             /*   for (int i = 0; i < transition[state].Count; i++)
                 {
                     var entry = transition[state];
                     prob1 = prev_prob * entry[tags[i]];
@@ -215,14 +213,19 @@ namespace Viterbi
                 }
 
                 prev_prob = max;
+                */
                 tagsLabel.Text += state;
-                string[] list_of_words = editorTB.Text.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                string sentence = editorTB.Text.ToLower();
+                string[] list_of_words = sentence.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 
-                double[,] matrix = new double[tags.Length + 2, list_of_words.Length + 1];
+                double[,] matrix = new double[tags.Length + 2, list_of_words.Length];
                 fillViterbi(matrix, list_of_words, transition, emission);
                 string next_best_word = predictNextWord(matrix, list_of_words, transition, emission);
                 listBox1.Items.Clear();
-                listBox1.Items.Add(next_best_word);
+                if(next_best_word != null)
+                {
+                    listBox1.Items.Add(next_best_word);
+                }
             }
             else if (length == 0)
             {
@@ -238,21 +241,22 @@ namespace Viterbi
                 double trans_prob = transition["\\t"][tags[tagI]];
                 matrix[tagI, 0] = trans_prob * (emission[tags[tagI]].ContainsKey(words[0]) ? emission[tags[tagI]][words[0]] : 0);
             }
-
             for (int wordI = 1; wordI < words.Length; wordI++)
             {
                 for (int tagI = 0; tagI < tags.Length; tagI++)
                 {
                     double max = 0;
+                    string maxTag = null;
                     for (int tagJ = 0; tagJ < tags.Length; tagJ++)
                     {
                         double tagTransistion = matrix[tagJ, wordI - 1] * transition[tags[tagJ]][tags[tagI]];
                         if (tagTransistion > max)
                         {
                             max = tagTransistion;
+                            maxTag = tags[tagJ];
                         }
                     }
-                    matrix[tagI, wordI] = max * (emission[tags[tagI]].ContainsKey(words[0]) ? emission[tags[tagI]][words[wordI]] : 0);
+                    matrix[tagI, wordI] = max * (emission[tags[tagI]].ContainsKey(words[wordI]) ? emission[tags[tagI]][words[wordI]] : 0);
                 }
             }
         }
@@ -267,13 +271,14 @@ namespace Viterbi
                 {
                     foreach (KeyValuePair<string, double> corpus_entry in emission[tags[tagI]])
                     {
-                        double prob = matrix[words.Length, prevTagI] * 
-                            transition[
-                                tags[prevTagI]
-                                ][
-                                tags[tagI]
-                                ] * 
-                            corpus_entry.Value;
+                        double a = matrix[prevTagI, words.Length - 1];
+                        double b = transition[tags[prevTagI]][tags[tagI]];
+                        double c = corpus_entry.Value;
+                        double prob =  a * b * c;
+                        if(a>0 && b>0 && c>0)
+                        {
+                            int h = 6;
+                        }
                         if(prob > max)
                         {
                             max = prob;
