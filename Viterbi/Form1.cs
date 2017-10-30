@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace Viterbi
 {
@@ -39,10 +40,10 @@ namespace Viterbi
             emission.Clear();
             transition.Clear();
             try
-            {   // Open the text file using a stream reader.
+            {   // Open the text file using priorProb stream reader.
                 using (StreamReader sr = new StreamReader(@"../../App_Data/processed_brown/transition.txt", System.Text.Encoding.Default))
                 {
-                    // Read the stream to a string, and write the string to the console.
+                    // Read the stream to priorProb string, and write the string to the console.
                     String line = sr.ReadLine();
                     String[] tags = line.Split(' ');
                     foreach (String prior in tags)
@@ -63,10 +64,10 @@ namespace Viterbi
                 status.Text = "The file could not be read:" + e.Message;
             }
             try
-            {   // Open the text file using a stream reader.
+            {   // Open the text file using priorProb stream reader.
                 using (StreamReader sr = new StreamReader(@"../../App_Data/processed_brown/emmission.txt", System.Text.Encoding.Default))
                 {
-                    // Read the stream to a string, and write the string to the console.
+                    // Read the stream to priorProb string, and write the string to the console.
                     String line;
                     while ((line = sr.ReadLine()) != null)
                     {
@@ -204,36 +205,43 @@ namespace Viterbi
                 status.Text = "Loading...";
                 double[,] matrix = new double[tags.Length + 2, list_of_words.Length];
                 int[,] backPointers = new int[tags.Length + 2, list_of_words.Length];
-                int lastBackPointer = fillViterbi(matrix,backPointers, list_of_words, transition, emission);
+                int lastBackPointer = fillViterbi(matrix, backPointers, list_of_words, transition, emission);
                 tagsLabel.Text = "";
-                if(lastBackPointer != -1)
+
+                editorTB.BackColor = System.Drawing.Color.Red;
+                compileStatus.Text = "Compilation failed";
+                if (lastBackPointer != -1)
                 {
-                    if(matrix[lastBackPointer, list_of_words.Length - 1] > 0.000001)
+                    if (matrix[lastBackPointer, list_of_words.Length - 1] > 0)
                     {
                         editorTB.BackColor = System.Drawing.Color.Green;
-                    }else
-                    {
-                        editorTB.BackColor = System.Drawing.Color.Red;
+                        compileStatus.Text = "Compilation sucessful";
                     }
-                    tagsLabel.Text += "<" + tags[lastBackPointer] + ">";
+                    List<string> viterbiTags = new List<string>();
+                    viterbiTags.Add(tags[lastBackPointer]);
                     for (int i = list_of_words.Length - 1; i >= 0; i--)
                     {
                         int backPointer = backPointers[lastBackPointer, i];
-                        if(backPointer != -1)
+                        if (backPointer != -1)
                         {
-                            tagsLabel.Text += "<"+tags[backPointer]+">";
-                        }else
+                            viterbiTags.Add(tags[backPointer]);
+                        }
+                        else
                         {
-                            tagsLabel.Text += "<!>";
+                            viterbiTags.Add("!");
                         }
                     }
+                    for (int i = viterbiTags.Count - 1; i >= 0; i--)
+                    {
+                        tagsLabel.Text += "<" + viterbiTags[i] + ">";
+                    }
                 }
-                Reverse(tagsLabel.Text);
-                string next_best_word = predictNextWord(matrix, list_of_words, transition, emission);
+                //tagsLabel.Text = Reverse(tagsLabel.Text);
+                List<KeyVal<string, double>> suggestions = predictNextWord(matrix, list_of_words, transition, emission);
                 listBox1.Items.Clear();
-                if(next_best_word != null)
+                foreach (KeyVal<string, double> suggestion in suggestions)
                 {
-                    listBox1.Items.Add(next_best_word);
+                    listBox1.Items.Add(suggestion.Key + " - " + suggestion.Value.ToString());
                 }
                 status.Text = "";
             }
@@ -275,9 +283,9 @@ namespace Viterbi
             }
             double maxBP = 0;
             int maxI = -1;
-            for(int i = 0; i < tags.Length; i++)
+            for (int i = 0; i < tags.Length; i++)
             {
-                if(matrix[i, words.Length - 1] > maxBP)
+                if (matrix[i, words.Length - 1] > maxBP)
                 {
                     maxBP = matrix[i, words.Length - 1];
                     maxI = i;
@@ -286,70 +294,99 @@ namespace Viterbi
             return maxI;
         }
 
-        public static string predictNextWord(double[,] matrix, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
+        public static List<KeyVal<string, double>> predictNextWord(double[,] matrix, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
         {
             double max = 0;
             String maxTag = null, maxWord = null;
-            for(int tagI = 0; tagI < tags.Length; tagI++)
+            int suggestionLimit = 25;
+            List<KeyVal<string, double>> suggestions = new List<KeyVal<string, double>>();
+            for (int tagI = 0; tagI < tags.Length; tagI++)
             {
                 for (int prevTagI = 0; prevTagI < tags.Length; prevTagI++)
                 {
-                    foreach (KeyValuePair<string, double> corpus_entry in emission[tags[tagI]])
+                    double viterbiPriorProb = matrix[prevTagI, words.Length - 1];
+                    double transitionProb = transition[tags[prevTagI]][tags[tagI]];
+                    double priorProb = viterbiPriorProb * transitionProb;
+                    if (priorProb > max)
                     {
-                        double a = matrix[prevTagI, words.Length - 1];
-                        double b = transition[tags[prevTagI]][tags[tagI]];
-                        double c = corpus_entry.Value;
-                        double prob =  a * b * c;
-                        if(a>0 && b>0 && c>0)
+                        max = priorProb;
+                        maxTag = tags[tagI];
+                    }
+                    continue;
+
+                    /*foreach (KeyValuePair<string, double> corpus_entry in emission[tags[tagI]])
+                    {
+                        double prob = priorProb * corpus_entry.Value;
+                        if (suggestions.Count < suggestionLimit)
                         {
-                            int h = 6;
+                            suggestions.Add(new KeyVal<string, double>(tags[tagI] + "-" + corpus_entry.Key, prob));
+                            continue;
                         }
-                        if(prob > max)
+                        else
                         {
-                            max = prob;
-                            maxTag = tags[tagI];
-                            maxWord = corpus_entry.Key;
+                            foreach (KeyVal<string, double> suggestion in suggestions)
+                            {
+                                if (prob > suggestion.Value)
+                                {
+                                    suggestion.Value = prob;
+                                    suggestion.Key = tags[tagI] + "-" + corpus_entry.Key;
+                                }
+                            }
                         }
                     }
+                    */
                 }
             }
 
-            /*
-            //trying all corpora and returning best match according to matrix found above
-            double highestProbability = 0;
-            string bestNextWord = "";
-            foreach (string corpora in corpus)
+            if (maxTag == null)
             {
-                double highestProbabilityForCurrentCorpora = 0;
-                foreach (string tag in tags)
+                suggestions.Add(new KeyVal<string, double>(maxTag, max));
+            }
+            else
+            {
+                foreach (KeyValuePair<string, double> corpus_entry in emission[maxTag])
                 {
-                    int k = 1;
-                    double max = 0;
-                    foreach (string prevtag in tags)
+                    double prob = max * corpus_entry.Value;
+                    if (suggestions.Count < suggestionLimit)
                     {
-                        double tagTransistion = matrix[k, i - 1] * transition[prevtag][tag];
-                        if (tagTransistion > max)
+                        suggestions.Add(new KeyVal<string, double>(maxTag + " " + corpus_entry.Key, prob));
+                    }
+                    else
+                    {
+                        foreach (KeyVal<string, double> suggestion in suggestions)
                         {
-                            max = tagTransistion;
+                            if (prob > suggestion.Value)
+                            {
+                                suggestion.Value = prob;
+                                suggestion.Key = maxTag + " " + corpus_entry.Key;
+                                break;
+                            }
                         }
-                        k++;
                     }
-                    double corporaProbabilityForCurrrentTag = max * emission[tag][corpora];
-                    if (corporaProbabilityForCurrrentTag > highestProbabilityForCurrentCorpora)
-                    {
-                        highestProbabilityForCurrentCorpora = corporaProbabilityForCurrrentTag;
-                    }
-                }
-
-                //If you want to return best three or whatever i just need to store this shit and sort
-                if (highestProbabilityForCurrentCorpora > highestProbability)
-                {
-                    highestProbability = highestProbabilityForCurrentCorpora;
-                    bestNextWord = corpora;
                 }
             }
-            */
-            return maxWord;
+            suggestions.Sort(
+                delegate (KeyVal<string, double> pair1, KeyVal<string, double> pair2)
+                {
+                    return pair2.Value.CompareTo(pair1.Value);
+                }
+            );
+            return suggestions;
         }
     }
+
+    public class KeyVal<KeyType, ValType>
+    {
+        public KeyType Key { get; set; }
+        public ValType Value { get; set; }
+
+        public KeyVal() { }
+
+        public KeyVal(KeyType key, ValType val)
+        {
+            this.Key = key;
+            this.Value = val;
+        }
+    }
+
 }
