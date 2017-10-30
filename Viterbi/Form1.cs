@@ -179,6 +179,13 @@ namespace Viterbi
             editorTB.Text += listBox1.SelectedItem.ToString();
         }
 
+        public static string Reverse(string s)
+        {
+            char[] charArray = s.ToCharArray();
+            Array.Reverse(charArray);
+            return new string(charArray);
+        }
+
         private void editorTB_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
         {
 
@@ -191,41 +198,44 @@ namespace Viterbi
 
                 tagsLabel.Text += ' ';
                 double max = 0;
-                //foreach (KeyValuePair<string, double> entry in transition[state]) //1st val of entry=< "<s>", VB >
-             /*   for (int i = 0; i < transition[state].Count; i++)
-                {
-                    var entry = transition[state];
-                    prob1 = prev_prob * entry[tags[i]];
-                    try
-                    {
-                        prob2 = prob1 * emission[tags[i]][word];
-                    }
-                    catch (Exception exc)
-                    {
-                        prob2 = 0;
-                    }
-                    if (prob2 > max)
-                    {
-                        max = prob2;
-                        state = tags[i];
-                    }
-
-                }
-
-                prev_prob = max;
-                */
-                tagsLabel.Text += state;
                 string sentence = editorTB.Text.ToLower();
                 string[] list_of_words = sentence.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                
+
+                status.Text = "Loading...";
                 double[,] matrix = new double[tags.Length + 2, list_of_words.Length];
-                fillViterbi(matrix, list_of_words, transition, emission);
+                int[,] backPointers = new int[tags.Length + 2, list_of_words.Length];
+                int lastBackPointer = fillViterbi(matrix,backPointers, list_of_words, transition, emission);
+                tagsLabel.Text = "";
+                if(lastBackPointer != -1)
+                {
+                    if(matrix[lastBackPointer, list_of_words.Length - 1] > 0.000001)
+                    {
+                        editorTB.BackColor = System.Drawing.Color.Green;
+                    }else
+                    {
+                        editorTB.BackColor = System.Drawing.Color.Red;
+                    }
+                    tagsLabel.Text += "<" + tags[lastBackPointer] + ">";
+                    for (int i = list_of_words.Length - 1; i >= 0; i--)
+                    {
+                        int backPointer = backPointers[lastBackPointer, i];
+                        if(backPointer != -1)
+                        {
+                            tagsLabel.Text += "<"+tags[backPointer]+">";
+                        }else
+                        {
+                            tagsLabel.Text += "<!>";
+                        }
+                    }
+                }
+                Reverse(tagsLabel.Text);
                 string next_best_word = predictNextWord(matrix, list_of_words, transition, emission);
                 listBox1.Items.Clear();
                 if(next_best_word != null)
                 {
                     listBox1.Items.Add(next_best_word);
                 }
+                status.Text = "";
             }
             else if (length == 0)
             {
@@ -234,18 +244,20 @@ namespace Viterbi
             }
         }
 
-        public static void fillViterbi(double[,] matrix, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
+        public static int fillViterbi(double[,] matrix, int[,] backPointers, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
         {
             for (int tagI = 0; tagI < tags.Length; tagI++)
             {
                 double trans_prob = transition["\\t"][tags[tagI]];
                 matrix[tagI, 0] = trans_prob * (emission[tags[tagI]].ContainsKey(words[0]) ? emission[tags[tagI]][words[0]] : 0);
+                backPointers[tagI, 0] = 23;
             }
             for (int wordI = 1; wordI < words.Length; wordI++)
             {
                 for (int tagI = 0; tagI < tags.Length; tagI++)
                 {
                     double max = 0;
+                    int maxTagJ = -1;
                     string maxTag = null;
                     for (int tagJ = 0; tagJ < tags.Length; tagJ++)
                     {
@@ -253,12 +265,25 @@ namespace Viterbi
                         if (tagTransistion > max)
                         {
                             max = tagTransistion;
+                            maxTagJ = tagJ;
                             maxTag = tags[tagJ];
                         }
                     }
                     matrix[tagI, wordI] = max * (emission[tags[tagI]].ContainsKey(words[wordI]) ? emission[tags[tagI]][words[wordI]] : 0);
+                    backPointers[tagI, wordI] = maxTagJ;
                 }
             }
+            double maxBP = 0;
+            int maxI = -1;
+            for(int i = 0; i < tags.Length; i++)
+            {
+                if(matrix[i, words.Length - 1] > maxBP)
+                {
+                    maxBP = matrix[i, words.Length - 1];
+                    maxI = i;
+                }
+            }
+            return maxI;
         }
 
         public static string predictNextWord(double[,] matrix, string[] words, Dictionary<string, Dictionary<string, double>> transition, Dictionary<string, Dictionary<string, double>> emission)
