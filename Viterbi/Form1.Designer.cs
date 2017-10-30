@@ -44,7 +44,7 @@
             this.editorTB.Name = "editorTB";
             this.editorTB.Size = new System.Drawing.Size(544, 20);
             this.editorTB.TabIndex = 2;
-            this.editorTB.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
+            this.editorTB.TextChanged += new System.EventHandler(this.editorTB_TextChanged);
             // 
             // currentWordLabel
             // 

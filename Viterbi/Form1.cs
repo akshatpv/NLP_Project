@@ -48,7 +48,6 @@ namespace Viterbi
                     foreach (String prior in tags)
                     {
                         String probabilityLine = sr.ReadLine();
-                        status.Text = probabilityLine;
                         String[] probabilities = probabilityLine.Split(' ');
                         Dictionary<string, double> priorTransition = new Dictionary<string, double>();
                         for (int i = 0; i < tags.Length; i++)
@@ -71,7 +70,6 @@ namespace Viterbi
                     String line;
                     while ((line = sr.ReadLine()) != null)
                     {
-                        status.Text = line;
                         String[] tagWordsPair = line.Split('\t');
                         String tag = tagWordsPair[0];
 
@@ -178,23 +176,23 @@ namespace Viterbi
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            textBox1.Text += listBox1.SelectedItem.ToString() + " ";
+            editorTB.Text += listBox1.SelectedItem.ToString();
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
+        private void editorTB_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
         {
 
-            int length = textBox1.Text.Length;
-            if (length > 0 && textBox1.Text[length - 1] == ' ')
+            int length = editorTB.Text.Length;
+            if (length > 0 && editorTB.Text[length - 1] == ' ')
             {
-                first_char = textBox1.Text.LastIndexOf(' ', length - 2) + 1;
-                word = textBox1.Text.Substring(first_char, length - first_char).Trim();
+                first_char = editorTB.Text.LastIndexOf(' ', length - 2) + 1;
+                word = editorTB.Text.Substring(first_char, length - first_char).Trim();
                 label2.Text = "Current word: " + word;
 
-                label4.Text += ' ';
+                tagsLabel.Text += ' ';
                 double max = 0;
                 //foreach (KeyValuePair<string, double> entry in transition[state]) //1st val of entry=< "<s>", VB >
-                for (int i = 0; i < transition[state].Count; i++)
+             /*   for (int i = 0; i < transition[state].Count; i++)
                 {
                     var entry = transition[state];
                     prob1 = prev_prob * entry[tags[i]];
@@ -215,8 +213,9 @@ namespace Viterbi
                 }
 
                 prev_prob = max;
-                label4.Text += state;
-                string sentence = textBox1.Text.ToLower();
+                */
+                tagsLabel.Text += state;
+                string sentence = editorTB.Text.ToLower();
                 string[] list_of_words = sentence.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 
                 double[,] matrix = new double[tags.Length + 2, list_of_words.Length];
