@@ -178,20 +178,20 @@ namespace Viterbi
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            textBox1.Text += listBox1.SelectedItem.ToString() + " ";
+            editorTB.Text += listBox1.SelectedItem.ToString() + " ";
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
+        private void editorTB_TextChanged(object sender, EventArgs e)   //backspacing doesnt work
         {
 
-            int length = textBox1.Text.Length;
-            if (length > 0 && textBox1.Text[length - 1] == ' ')
+            int length = editorTB.Text.Length;
+            if (length > 0 && editorTB.Text[length - 1] == ' ')
             {
-                first_char = textBox1.Text.LastIndexOf(' ', length - 2) + 1;
-                word = textBox1.Text.Substring(first_char, length - first_char).Trim();
+                first_char = editorTB.Text.LastIndexOf(' ', length - 2) + 1;
+                word = editorTB.Text.Substring(first_char, length - first_char).Trim();
                 label2.Text = "Current word: " + word;
 
-                label4.Text += ' ';
+                tagsLabel.Text += ' ';
                 double max = 0;
                 //foreach (KeyValuePair<string, double> entry in transition[state]) //1st val of entry=< "<s>", VB >
                 for (int i = 0; i < transition[state].Count; i++)
@@ -215,8 +215,8 @@ namespace Viterbi
                 }
 
                 prev_prob = max;
-                label4.Text += state;
-                string[] list_of_words = textBox1.Text.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                tagsLabel.Text += state;
+                string[] list_of_words = editorTB.Text.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 
                 double[,] matrix = new double[tags.Length + 2, list_of_words.Length + 1];
                 fillViterbi(matrix, list_of_words, transition, emission);

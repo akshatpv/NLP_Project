@@ -44,12 +44,12 @@
             this.editorTB.Name = "editorTB";
             this.editorTB.Size = new System.Drawing.Size(544, 20);
             this.editorTB.TabIndex = 2;
-            this.editorTB.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
+            this.editorTB.TextChanged += new System.EventHandler(this.editorTB_TextChanged);
             // 
             // currentWordLabel
             // 
             this.currentWordLabel.AutoSize = true;
-            this.currentWordLabel.Location = new System.Drawing.Point(91, 50);
+            this.currentWordLabel.Location = new System.Drawing.Point(91, 40);
             this.currentWordLabel.Name = "currentWordLabel";
             this.currentWordLabel.Size = new System.Drawing.Size(10, 13);
             this.currentWordLabel.TabIndex = 3;
@@ -76,7 +76,7 @@
             // status
             // 
             this.status.AutoSize = true;
-            this.status.Location = new System.Drawing.Point(9, 203);
+            this.status.Location = new System.Drawing.Point(9, 213);
             this.status.Name = "status";
             this.status.Size = new System.Drawing.Size(35, 13);
             this.status.TabIndex = 7;
@@ -103,7 +103,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(562, 82);
+            this.label2.Location = new System.Drawing.Point(12, 40);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(73, 13);
             this.label2.TabIndex = 10;
